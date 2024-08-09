@@ -20,6 +20,7 @@ jobs:
 
       - name: Check and restart SOCKS5
         id: check_restart_socks5
+        continue-on-error: true
         run: |
           # 定义 SOCKS5 连接信息
           SOCKS5_PROXY="moyuan:qwer0115@31.186.85.171:57061"
@@ -28,7 +29,7 @@ jobs:
 
           for VPS_IP in "${VPS_IPS[@]}"; do
             echo "尝试连接到 ${VPS_IP}..."
-            STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'" 2>/dev/null)
+            STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'" 2>/dev/null) || true
             
             if [ $? -eq 0 ]; then
               CONNECTED=true
@@ -46,9 +47,9 @@ jobs:
                 sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "
                   nohup ${FILE_PATH}/s5 -c ${FILE_PATH}/config.json >/dev/null 2>&1 &
                   sleep 2
-                "
+                " || true
                 # 检查 SOCKS5 是否成功重启
-                NEW_STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'" 2>/dev/null)
+                NEW_STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'" 2>/dev/null) || true
                 if [ -n "$NEW_STATUS" ]; then
                   echo "SOCKS5 程序已成功重启。"
                   RESTART_MESSAGE="SOCKS5 程序已成功重启。"
