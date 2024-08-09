@@ -19,16 +19,17 @@ jobs:
           sudo apt-get install -y sshpass
 
       - name: Check and restart SOCKS5
+        id: check_restart_socks5
         run: |
           # 定义 SOCKS5 连接信息
           SOCKS5_PROXY="moyuan:qwer0115@31.186.85.171:57061"
-          RESTART_MESSAGE="SOCKS5 程序正在运行。"
           
           # 检查 SOCKS5 程序是否正在运行
           STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.VPS_IP }} "pgrep -x 's5'")
           if [ -n "$STATUS" ]; then
             echo "SOCKS5 程序正在运行。"
             STATUS_MESSAGE="正常运行"
+            RESTART_MESSAGE=""
           else
             echo "SOCKS5 程序未运行，正在重新启动..."
             STATUS_MESSAGE="未运行，已尝试重启"
@@ -49,8 +50,16 @@ jobs:
             fi
           fi
 
+          echo "::set-output name=status_message::$STATUS_MESSAGE"
+          echo "::set-output name=restart_message::$RESTART_MESSAGE"
+
+      - name: Debug variables before sending Telegram message
+        run: |
+          echo "STATUS_MESSAGE=${{ steps.check_restart_socks5.outputs.status_message }}"
+          echo "RESTART_MESSAGE=${{ steps.check_restart_socks5.outputs.restart_message }}"
+
       - name: Send notification to Telegram
         run: |
           # 发送通知到 Telegram
-          MESSAGE="SOCKS5 程序检查完成。状态：${STATUS_MESSAGE}。${RESTART_MESSAGE}"
+          MESSAGE="SOCKS5 程序检查完成。状态：${{ steps.check_restart_socks5.outputs.status_message }}。${{ steps.check_restart_socks5.outputs.restart_message }}"
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_API_TOKEN }}/sendMessage" -d "chat_id=${{ secrets.CHAT_ID }}&text=${MESSAGE}"
