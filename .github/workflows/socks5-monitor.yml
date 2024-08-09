@@ -18,47 +18,31 @@ jobs:
           sudo apt-get install -y curl jq sshpass
 
       - name: Check and restart SOCKS5
-        id: check_socks5
         run: |
           # 定义 SOCKS5 连接信息
           SOCKS5_PROXY="moyuan:qwer0115@31.186.85.171:57061"
           
           # 检查 SOCKS5 程序是否正在运行
-          if curl -s --socks5 ${SOCKS5_PROXY} http://ipinfo.io/ip | grep -q '31.186.85.171'; then
+          if curl -s --socks5 ${SOCKS5_PROXY} http://ipinfo.io/ip | grep -q 'IP'; then
             echo "SOCKS5 程序正在运行。"
-            echo "::set-output name=status::running"
           else
             echo "SOCKS5 程序未运行，正在重新启动..."
             # 使用 SSH 连接到 VPS 并重启 SOCKS5 程序
-            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${YOUR_SSH_USERNAME}@${YOUR_VPS_IP} "
+            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.VPS_IP }} "
               # 启动 SOCKS5 程序的命令
               nohup /home/${USER}/.s5/s5 -c /home/${USER}/.s5/config.json >/dev/null 2>&1 &
               sleep 2
-              if pgrep -x 's5' > /dev/null; then
-                echo 'SOCKS5 程序已启动。'
-                echo 'restart_success' > /home/${USER}/socks5_status.txt
-              else
-                echo 'SOCKS5 程序启动失败。'
-                echo 'restart_failed' > /home/${USER}/socks5_status.txt
-              fi
+              echo 'SOCKS5 程序已启动。'
             "
-            # 从 VPS 上读取重启状态
-            SSH_STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${YOUR_SSH_USERNAME}@${YOUR_VPS_IP} "cat /home/${USER}/socks5_status.txt")
-            echo "::set-output name=status::$SSH_STATUS"
           fi
 
-      - name: Send Telegram notification
-        if: steps.check_socks5.outputs.status == 'restart_success' || steps.check_socks5.outputs.status == 'restart_failed'
+      - name: Send notification to Telegram
         run: |
-          MESSAGE="SOCKS5 状态更新:\n"
-          if [ "${{ steps.check_socks5.outputs.status }}" == "running" ]; then
-            MESSAGE+="SOCKS5 程序正在运行。"
-          elif [ "${{ steps.check_socks5.outputs.status }}" == "restart_success" ]; then
-            MESSAGE+="SOCKS5 程序未运行，但已成功重新启动。"
-          elif [ "${{ steps.check_socks5.outputs.status }}" == "restart_failed" ]; then
-            MESSAGE+="SOCKS5 程序未运行，重新启动失败。"
-          fi
-
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="$MESSAGE"
+          # 发送通知到 Telegram 的代码
+          TELEGRAM_API_TOKEN='YOUR_TELEGRAM_BOT_TOKEN'
+          CHAT_ID='YOUR_CHAT_ID'
+          MESSAGE="SOCKS5 程序检查完成。"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_API_TOKEN}/sendMessage" -d "chat_id=${CHAT_ID}&text=${MESSAGE}"
+        env:
+          TELEGRAM_API_TOKEN: ${{ secrets.TELEGRAM_API_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
