@@ -28,45 +28,44 @@ jobs:
 
           for VPS_IP in "${VPS_IPS[@]}"; do
             echo "尝试连接到 ${VPS_IP}..."
-            STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'" 2>/dev/null)
+            STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'" 2>/dev/null)
             
             if [ $? -eq 0 ]; then
               CONNECTED=true
               echo "连接成功。"
+              # 检查 SOCKS5 是否正在运行
+              if [ -n "$STATUS" ]; then
+                echo "SOCKS5 程序正在运行。"
+                STATUS_MESSAGE="正常运行"
+                RESTART_MESSAGE=""
+                RUNNING_PIDS=$STATUS
+              else
+                echo "SOCKS5 程序未运行，正在重新启动..."
+                STATUS_MESSAGE="未运行，已尝试重启"
+                # 使用 SSH 连接到 VPS 并重启 SOCKS5 程序
+                sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "
+                  nohup ${FILE_PATH}/s5 -c ${FILE_PATH}/config.json >/dev/null 2>&1 &
+                  sleep 2
+                "
+                # 检查 SOCKS5 是否成功重启
+                NEW_STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'" 2>/dev/null)
+                if [ -n "$NEW_STATUS" ]; then
+                  echo "SOCKS5 程序已成功重启。"
+                  RESTART_MESSAGE="SOCKS5 程序已成功重启。"
+                  RUNNING_PIDS=$NEW_STATUS
+                else
+                  echo "SOCKS5 程序重启失败。"
+                  RESTART_MESSAGE="SOCKS5 程序重启失败。"
+                  RUNNING_PIDS="无"
+                fi
+              fi
               break
             else
               echo "无法连接到 ${VPS_IP}。"
             fi
           done
 
-          if [ "$CONNECTED" = true ]; then
-            if [ -n "$STATUS" ]; then
-              echo "SOCKS5 程序正在运行。"
-              STATUS_MESSAGE="正常运行"
-              RESTART_MESSAGE=""
-              RUNNING_PIDS=$STATUS
-            else
-              echo "SOCKS5 程序未运行，正在重新启动..."
-              STATUS_MESSAGE="未运行，已尝试重启"
-              # 使用 SSH 连接到 VPS 并重启 SOCKS5 程序
-              sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "
-                # 启动 SOCKS5 程序的命令
-                nohup ${FILE_PATH}/s5 -c ${FILE_PATH}/config.json >/dev/null 2>&1 &
-                sleep 2
-              "
-              # 检查 SOCKS5 是否成功重启
-              NEW_STATUS=$(sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "pgrep -x 's5'")
-              if [ -n "$NEW_STATUS" ]; then
-                echo "SOCKS5 程序已成功重启。"
-                RESTART_MESSAGE="SOCKS5 程序已成功重启。"
-                RUNNING_PIDS=$NEW_STATUS
-              else
-                echo "SOCKS5 程序重启失败。"
-                RESTART_MESSAGE="SOCKS5 程序重启失败。"
-                RUNNING_PIDS="无"
-              fi
-            fi
-          else
+          if [ "$CONNECTED" = false ]; then
             echo "无法连接到任何 VPS。"
             STATUS_MESSAGE="无法连接到任何 VPS"
             RESTART_MESSAGE=""
