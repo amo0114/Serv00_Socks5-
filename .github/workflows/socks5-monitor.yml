@@ -45,18 +45,17 @@ jobs:
                 STATUS_MESSAGE="未运行，已尝试重启"
                 # 使用 SSH 连接到 VPS 并重启 SOCKS5 程序
                 sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@$VPS_IP "
-                  FILE_PATH='/path/to/your/files'  # 替换为实际路径
-                  nohup \${FILE_PATH}/s5 -c \${FILE_PATH}/config.json > \${FILE_PATH}/socks5.log 2>&1 &
+                  FILE_PATH='/home/username/.s5'  # 替换为实际路径
+                  nohup \${FILE_PATH}/s5 -c \${FILE_PATH}/config.json >/dev/null 2>&1 &
                   sleep 2
                   if pgrep -x 's5' > /dev/null; then
                     echo 'SOCKS5 程序已成功重启。'
                     RESTART_MESSAGE='SOCKS5 程序已成功重启。'
                     RUNNING_PIDS=\$(pgrep -x 's5')
                   else
-                    echo 'SOCKS5 程序重启失败，日志如下：'
+                    echo 'SOCKS5 程序重启失败。'
                     RESTART_MESSAGE='SOCKS5 程序重启失败。'
                     RUNNING_PIDS='无'
-                    cat \${FILE_PATH}/socks5.log
                   fi
                 " || true
               fi
