@@ -21,28 +21,32 @@ jobs:
         run: |
           # 定义 SOCKS5 连接信息
           SOCKS5_PROXY="moyuan:qwer0115@31.186.85.171:57061"
+          RESTART_MESSAGE="SOCKS5 程序正在运行。"
           
           # 检查 SOCKS5 程序是否正在运行
           if curl -s --socks5 ${SOCKS5_PROXY} http://ipinfo.io/ip | grep -q 'IP'; then
             echo "SOCKS5 程序正在运行。"
+            STATUS="正常运行"
           else
             echo "SOCKS5 程序未运行，正在重新启动..."
+            STATUS="未运行，已尝试重启"
             # 使用 SSH 连接到 VPS 并重启 SOCKS5 程序
             sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.VPS_IP }} "
               # 启动 SOCKS5 程序的命令
               nohup /home/${USER}/.s5/s5 -c /home/${USER}/.s5/config.json >/dev/null 2>&1 &
               sleep 2
-              echo 'SOCKS5 程序已启动。'
             "
+            if curl -s --socks5 ${SOCKS5_PROXY} http://ipinfo.io/ip | grep -q 'IP'; then
+              echo "SOCKS5 程序已成功重启。"
+              RESTART_MESSAGE="SOCKS5 程序已成功重启。"
+            else
+              echo "SOCKS5 程序重启失败。"
+              RESTART_MESSAGE="SOCKS5 程序重启失败。"
+            fi
           fi
 
       - name: Send notification to Telegram
         run: |
           # 发送通知到 Telegram 的代码
-          TELEGRAM_API_TOKEN='YOUR_TELEGRAM_BOT_TOKEN'
-          CHAT_ID='YOUR_CHAT_ID'
-          MESSAGE="SOCKS5 程序检查完成。"
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_API_TOKEN}/sendMessage" -d "chat_id=${CHAT_ID}&text=${MESSAGE}"
-        env:
-          TELEGRAM_API_TOKEN: ${{ secrets.TELEGRAM_API_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
+          MESSAGE="SOCKS5 程序检查完成。状态：${STATUS}。${RESTART_MESSAGE}"
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_API_TOKEN }}/sendMessage" -d "chat_id=${{ secrets.CHAT_ID }}&text=${MESSAGE}"
