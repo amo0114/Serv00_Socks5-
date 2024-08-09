@@ -33,7 +33,7 @@ jobs:
             # 使用 SSH 连接到 VPS 并重启 SOCKS5 程序
             sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.VPS_IP }} "
               # 启动 SOCKS5 程序的命令
-              nohup /home/${USER}/.s5/s5 -c /home/${USER}/.s5/config.json >/dev/null 2>&1 &
+              nohup ${FILE_PATH}/s5 -c ${FILE_PATH}/config.json >/dev/null 2>&1 &
               sleep 2
             "
             if curl -s --socks5 ${SOCKS5_PROXY} http://ipinfo.io/ip | grep -q 'IP'; then
