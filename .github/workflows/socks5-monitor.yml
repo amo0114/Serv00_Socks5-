@@ -3,6 +3,7 @@ name: SOCKS5 Monitor
 on:
   schedule:
     - cron: '*/30 * * * *'  # 每30分钟执行一次
+    workflow_dispatch:  # 添加这个部分以允许手动触发
 
 jobs:
   monitor:
