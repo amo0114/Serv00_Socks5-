@@ -37,6 +37,7 @@ jobs:
               nohup ${FILE_PATH}/s5 -c ${FILE_PATH}/config.json >/dev/null 2>&1 &
               sleep 2
             "
+            # 再次检查 SOCKS5 程序是否成功启动
             if curl -s --socks5 ${SOCKS5_PROXY} http://ipinfo.io/ip | grep -q 'IP'; then
               echo "SOCKS5 程序已成功重启。"
               RESTART_MESSAGE="SOCKS5 程序已成功重启。"
